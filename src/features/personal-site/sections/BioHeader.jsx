@@ -13,7 +13,7 @@ function BioHeader() {
           letterSpacing: typography.heading.h2.letterSpacing,
         }}
       >
-        Lin
+        安宁薄饼
       </h1>
       <p
         className="tagline mt-3 text-[#C8C8C8]"
@@ -24,7 +24,7 @@ function BioHeader() {
           lineHeight: typography.body.md.lineHeight,
         }}
       >
-        设计驱动的前端开发者，专注简洁、可靠、可复用的产品体验。
+        每天进步一点点，成为更好的自己
       </p>
     </header>
   )
