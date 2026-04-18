@@ -2,26 +2,26 @@ import { Card } from '../../../../design-system'
 
 const timeline = [
   {
-    period: '2024 - 至今',
-    title: '前端开发工程师',
-    detail: '负责设计系统落地、组件库建设与核心页面性能优化。',
+    period: '2020.9 - 2024.3',
+    title: '重庆右邮电大学就读，本科',
+    detail: '学习软件工程通用课程，如数据库，数据结构等',
   },
   {
-    period: '2022 - 2024',
-    title: 'UI 工程师',
-    detail: '跨设计与开发协作，建立从 Figma 到代码的标准化流程。',
+    period: '2024.4 - 2024.6',
+    title: '深圳智岩科技有限公司',
+    detail: '智能氛围照明app测试',
   },
   {
-    period: '2019 - 2022',
-    title: '独立开发者',
-    detail: '完成多个个人作品并持续迭代视觉与交互体验。',
+    period: '2024.4 - 至今',
+    title: '深圳市新凯来科技有限公司',
+    detail: 'LT设备软件测试',
   },
 ]
 
 function ResumeTimeline() {
   return (
     <section className="ResumeTimeline">
-      <h2 className="mb-4 text-xl font-semibold text-white">Resume Timeline</h2>
+      <h2 className="mb-4 text-xl font-semibold text-white">时间线</h2>
       <ul className="timeline space-y-3">
         {timeline.map((item) => (
           <li key={item.period} className="timeline-item">
