@@ -90,8 +90,8 @@ function ContactSection() {
         <div className="input-wrapper">
           <Input 
             id="contact-email" 
-            label="邮箱号" 
-            placeholder="邮箱号" 
+            label="联系方式" 
+            placeholder="联系方式" 
             value={formData.email}
             onChange={handleInputChange}
             autoComplete="email"
@@ -100,9 +100,9 @@ function ContactSection() {
         <div className="input-wrapper">
           <Input 
             id="contact-message" 
-            label="邮件详情" 
+            label="详情" 
             multiline 
-            placeholder="邮件详情" 
+            placeholder="详情" 
             value={formData.message}
             onChange={handleInputChange}
             autoComplete="off"
