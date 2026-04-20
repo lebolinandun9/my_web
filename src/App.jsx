@@ -5,6 +5,9 @@ function App() {
   const canvasRef = useRef(null)
   const cursorRef = useRef(null)
   const [isHovering, setIsHovering] = useState(false)
+  const [isInputFocused, setIsInputFocused] = useState(false)
+  const mouseXRef = useRef(0)
+  const mouseYRef = useRef(0)
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -183,10 +186,10 @@ function App() {
     const cursor = cursorRef.current
     if (!cursor) return
 
-    let mouseX = 0
-    let mouseY = 0
     let cursorX = 0
     let cursorY = 0
+    let lastHoverState = false
+    let lastInputState = false
 
     // 检测是否在内容区域
     const isInContentArea = (x, y) => {
@@ -196,46 +199,86 @@ function App() {
       return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom
     }
 
-    // 检测是否在可交互元素上
-    const isInteractiveElement = (target) => {
-      return target.closest('a, button, [role="button"], input, textarea, select, .social-icons a, .portfolio-card a, .contact-form button, .avatar-img') ||
-             target.closest('.portfolio-card') ||
-             target.closest('.contact-form') ||
-             target.closest('.social-icons') ||
-             target.tagName.toLowerCase() === 'img'
+    // 检测是否在输入框上（最高优先级检测）
+    const isInputElement = (target) => {
+      const tagName = target.tagName.toLowerCase()
+      if (tagName === 'input' || tagName === 'textarea' || tagName === 'select') {
+        return true
+      }
+      if (target.closest('input, textarea, select')) {
+        return true
+      }
+      if (target.closest('.contact-form input, .contact-form textarea, input[type="text"], input[type="email"], input[type="tel"], textarea')) {
+        return true
+      }
+      return false
     }
 
-    // 鼠标移动
+    // 检测是否在可交互元素上（排除输入框）
+    const isInteractiveElement = (target) => {
+      const tagName = target.tagName.toLowerCase()
+      if (tagName === 'input' || tagName === 'textarea' || tagName === 'select') {
+        return false
+      }
+      return target.closest('a, button, [role="button"], .social-icons a, .portfolio-card a, .avatar-img') ||
+             target.closest('.portfolio-card') ||
+             target.closest('.social-icons') ||
+             tagName === 'img'
+    }
+
+    // 鼠标移动 - 无节流，即时响应
     const handleMouseMove = (e) => {
-      mouseX = e.clientX
-      mouseY = e.clientY
+      mouseXRef.current = e.clientX
+      mouseYRef.current = e.clientY
       const target = e.target
 
-      if (isInContentArea(mouseX, mouseY)) {
-        cursor.style.opacity = '1'
-        document.body.style.cursor = 'none'
-        
-        // 检测是否在可交互元素上
-        if (isInteractiveElement(target)) {
-          setIsHovering(true)
-          cursor.classList.add('hover')
+      if (isInContentArea(mouseXRef.current, mouseYRef.current)) {
+        // 最高优先级：检测是否在输入框上
+        if (isInputElement(target)) {
+          if (!lastInputState) {
+            cursor.style.opacity = '0'
+            document.body.style.cursor = 'text'
+            lastInputState = true
+            lastHoverState = false
+          }
         } else {
-          setIsHovering(false)
-          cursor.classList.remove('hover')
+          if (lastInputState) {
+            cursor.style.opacity = '1'
+            lastInputState = false
+          }
+          
+          cursor.style.opacity = '1'
+          document.body.style.cursor = 'none'
+          
+          // 检测是否在可交互元素上
+          const isHover = isInteractiveElement(target)
+          if (isHover !== lastHoverState) {
+            if (isHover) {
+              cursor.classList.add('hover')
+            } else {
+              cursor.classList.remove('hover')
+            }
+            lastHoverState = isHover
+            setIsHovering(isHover)
+          }
         }
       } else {
-        cursor.style.opacity = '0'
-        document.body.style.cursor = 'auto'
-        setIsHovering(false)
+        if (lastHoverState || lastInputState) {
+          cursor.style.opacity = '0'
+          document.body.style.cursor = 'auto'
+          lastHoverState = false
+          lastInputState = false
+          setIsHovering(false)
+        }
       }
     }
 
-    // 光标跟随动画
+    // 光标跟随动画 - 提高跟随速度
     const animateCursor = () => {
-      const dx = mouseX - cursorX
-      const dy = mouseY - cursorY
-      cursorX += dx * 0.15
-      cursorY += dy * 0.15
+      const dx = mouseXRef.current - cursorX
+      const dy = mouseYRef.current - cursorY
+      cursorX += dx * 0.25
+      cursorY += dy * 0.25
 
       cursor.style.left = `${cursorX - 16}px`
       cursor.style.top = `${cursorY - 16}px`
@@ -243,11 +286,51 @@ function App() {
       requestAnimationFrame(animateCursor)
     }
 
-    window.addEventListener('mousemove', handleMouseMove)
+    window.addEventListener('mousemove', handleMouseMove, { passive: true })
     animateCursor()
 
     return () => {
       window.removeEventListener('mousemove', handleMouseMove)
+    }
+  }, [])
+
+  // 处理输入框焦点事件
+  useEffect(() => {
+    const handleFocus = (e) => {
+      if (e.target.tagName.toLowerCase() === 'input' || 
+          e.target.tagName.toLowerCase() === 'textarea' ||
+          e.target.tagName.toLowerCase() === 'select') {
+        setIsInputFocused(true)
+        if (cursorRef.current) {
+          cursorRef.current.style.opacity = '0'
+        }
+        document.body.style.cursor = 'text'
+      }
+    }
+
+    const handleBlur = (e) => {
+      if (e.target.tagName.toLowerCase() === 'input' || 
+          e.target.tagName.toLowerCase() === 'textarea' ||
+          e.target.tagName.toLowerCase() === 'select') {
+        setIsInputFocused(false)
+        const mainContent = document.querySelector('main')
+        if (mainContent) {
+          const rect = mainContent.getBoundingClientRect()
+          if (rect.left <= mouseXRef.current && mouseXRef.current <= rect.right && 
+              rect.top <= mouseYRef.current && mouseYRef.current <= rect.bottom) {
+            cursorRef.current.style.opacity = '1'
+            document.body.style.cursor = 'none'
+          }
+        }
+      }
+    }
+
+    document.addEventListener('focusin', handleFocus)
+    document.addEventListener('focusout', handleBlur)
+
+    return () => {
+      document.removeEventListener('focusin', handleFocus)
+      document.removeEventListener('focusout', handleBlur)
     }
   }, [])
 
@@ -267,25 +350,21 @@ function App() {
         style={{
           width: '32px',
           height: '32px',
-          transition: 'opacity 0.2s ease-out'
+          transition: 'opacity 0.05s ease-out'
         }}
       >
-        {/* 三角形主体 */}
+        {/* 三角主体 */}
         <div
           className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
           style={{
             width: '0',
             height: '0',
-
-
-
-
-            borderLeft: '10px solid transparent',
-            borderRight: '10px solid transparent',
-            borderBottom: '24px solid rgba(40, 122, 17, 0.8)',  // 增加底部高度，延长尾部
+            borderLeft: '8px solid transparent',
+            borderRight: '8px solid transparent',
+            borderBottom: '14px solid rgba(40, 122, 17, 0.9)',
             transform: 'translate(-50%, -50%) rotate(-45deg)',
             filter: 'drop-shadow(0 0 4px rgba(40, 122, 17, 0.6))',
-            transition: 'all 0.2s ease-out'
+            transition: 'all 0.06s ease-out'
           }}
         />
         
@@ -297,70 +376,84 @@ function App() {
             height: '4px',
             backgroundColor: 'rgba(40, 122, 17, 1)',
             boxShadow: '0 0 6px rgba(40, 122, 17, 0.8)',
-            animation: 'cursorPulse 2s ease-in-out infinite',
-            transition: 'all 0.2s ease-out'
-          }}
-        />
-        
-        {/* 柔和外光晕 */}
-        <div
-          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full"
-          style={{
-            width: '20px',
-            height: '20px',
-            background: 'radial-gradient(circle, rgba(40, 122, 17, 0.15) 0%, transparent 70%)',
-            animation: 'cursorGlow 3s ease-in-out infinite',
-            transition: 'all 0.2s ease-out'
+            transition: 'all 0.06s ease-out'
           }}
         />
       </div>
 
       {/* 光标样式 */}
       <style>{`
-        @keyframes cursorPulse {
-          0%, 100% {
-            opacity: 0.8;
-            transform: translate(-50%, -50%) scale(1);
-          }
-          50% {
-            opacity: 1;
-            transform: translate(-50%, -50%) scale(1.2);
-          }
+        /* 输入框全局最高优先级例外规则 - 始终使用原生光标 */
+        input,
+        textarea,
+        select {
+          cursor: text !important;
+        }
+        
+        input:focus,
+        textarea:focus,
+        select:focus {
+          cursor: text !important;
         }
 
-        @keyframes cursorGlow {
-          0%, 100% {
-            opacity: 0.5;
-            transform: translate(-50%, -50%) scale(1);
-          }
-          50% {
-            opacity: 0.8;
-            transform: translate(-50%, -50%) scale(1.1);
-          }
+        /* 确保内容区域其他元素隐藏系统光标 */
+        main *:not(input):not(textarea):not(select) {
+          cursor: none !important;
         }
 
         .hover {
           cursor: none !important;
         }
 
-        .hover > div:nth-child(1) {
-          border-bottom-color: rgba(20, 60, 10, 0.9) !important;
+        .hover > div:first-child {
+          border-left-width: 10px !important;
+          border-right-width: 10px !important;
+          border-bottom-width: 18px !important;
+          border-bottom-color: rgba(60, 180, 25, 1) !important;
           transform: translate(-50%, -50%) rotate(-45deg) scale(1.2) !important;
+          filter: drop-shadow(0 0 6px rgba(60, 180, 25, 0.8)) !important;
+          transition: all 0.05s ease-out !important;
         }
 
         .hover > div:nth-child(2) {
           width: 6px !important;
           height: 6px !important;
-          background-color: rgba(20, 60, 10, 1) !important;
-          box-shadow: 0 0 8px rgba(20, 60, 10, 1) !important;
+          background-color: rgba(60, 180, 25, 1) !important;
+          box-shadow: 0 0 10px rgba(60, 180, 25, 1) !important;
+          transition: all 0.05s ease-out !important;
         }
-
-        .hover > div:nth-child(3) {
-          width: 24px !important;
-          height: 24px !important;
-          background: radial-gradient(circle, rgba(20, 60, 10, 0.25) 0%, transparent 70%) !important;
+        
+        /* 输入框选中样式 - 移除默认模糊外框 */
+        input:focus,
+        textarea:focus,
+        select:focus {
+          outline: none !important;
+          outline-offset: 0 !important;
+          box-shadow: none !important;
         }
-
+        
+        input[type="text"]:focus,
+        input[type="email"]:focus,
+        input[type="tel"]:focus,
+        textarea:focus {
+          -webkit-appearance: none;
+          -moz-appearance: none;
+          appearance: none;
+        }
+        
+        input:-webkit-autofill,
+        input:-webkit-autofill:hover,
+        input:-webkit-autofill:focus,
+        input:-webkit-autofill:active {
+          -webkit-box-shadow: 0 0 0 30px #000 inset !important;
+          -webkit-text-fill-color: #fff !important;
+        }
+        
+        input:-webkit-autofill {
+          -webkit-transition: background-color 5000s ease-in-out 0s;
+          transition: background-color 5000s ease-in-out 0s;
+        }
+        
         @media (max-width: 768px) {
           .fixed.z-\\[9999\\] {
             display: none !important;
